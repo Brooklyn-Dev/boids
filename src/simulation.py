@@ -1,5 +1,5 @@
 from random import choice, randrange, uniform
-from typing import List, Tuple
+from typing import Set, Tuple
 
 import pygame as pg
 
@@ -17,14 +17,14 @@ class Simulation:
         
         self.selected_boid: Boid | None = None
         
-        self.boids: List[Boid] = []
+        self.boids: Set[Boid] = set()
         for _ in range(NUM_BOIDS):
             pos: pg.Vector2 = pg.Vector2(randrange(0, SCREEN_WIDTH), randrange(0, SCREEN_HEIGHT))
             vel: pg.Vector2 = pg.Vector2(
                 uniform(DEFAULT_CONFIG.min_speed, DEFAULT_CONFIG.max_speed) * choice((-1, 1)),
                 uniform(DEFAULT_CONFIG.min_speed, DEFAULT_CONFIG.max_speed) * choice((-1, 1))
             )
-            self.boids.append(Boid(pos, vel, DEFAULT_CONFIG))
+            self.boids.add(Boid(pos, vel, DEFAULT_CONFIG))
         
         self.running: bool = True
         
@@ -56,7 +56,7 @@ class Simulation:
             self.screen.fill(pg.Color('black'))
             
             for boid in self.boids:
-                boid.update()
+                boid.update(self.boids)
                 boid.draw(self.screen)
             
             pg.display.flip()

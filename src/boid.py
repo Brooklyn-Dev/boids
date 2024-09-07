@@ -1,5 +1,5 @@
 from math import atan2, cos, degrees, radians, sin
-from typing import Tuple
+from typing import List, Set, Tuple
 
 import pygame as pg
 
@@ -31,9 +31,9 @@ class Boid:
             self.size * 2
         )
 
-    def update(self) -> None:
+    def update(self, boids: Set["Boid"]) -> None:
         self._avoid_screen_edges()
-        # self._avoid_local_flockmates()
+        self._avoid_all_boids(boids)
         
         self._velocity.clamp_magnitude_ip(self._config.min_speed, self._config.max_speed)
         self._position += self._velocity
@@ -42,7 +42,7 @@ class Boid:
         orientation_angle: float = degrees(atan2(self._velocity.y, self._velocity.x))
         
         if self.selected:
-            self._draw_vision_disc(screen, orientation_angle)
+            self._draw_discs(screen, orientation_angle)
         
         point1: pg.Vector2 = self._position + pg.Vector2(self.size, 0).rotate(orientation_angle)
         point2: pg.Vector2 = self._position + pg.Vector2(-self.size * 0.5, self.size * 0.5).rotate(orientation_angle)
@@ -56,38 +56,44 @@ class Boid:
             bounding_box = self.get_bounding_box()
             pg.draw.rect(screen, pg.Color("red"), bounding_box, 2)
 
-    def _draw_vision_disc(self, screen: pg.Surface, orientation_angle: float) -> None:
-        r = self._config.vision_distance
+    # Draw vision disc and protected disc
+    def _draw_discs(self, screen: pg.Surface, orientation_angle: float) -> None:
+        radius: float = self._config.vision_distance
         
-        disc_surface = pg.Surface((r * 2, r * 2), pg.SRCALPHA)
+        disc_surface: pg.Surface = pg.Surface((radius * 2, radius * 2), pg.SRCALPHA)
         
-        start_angle = radians(-self._config.vision_angle / 2)
-        end_angle = radians(self._config.vision_angle / 2)
+        start_angle: float = radians(-self._config.vision_angle / 2)
+        end_angle: float = radians(self._config.vision_angle / 2)
+        centre: pg.Vector2 = pg.Vector2(radius, radius)
         
-        center = (r, r)
-        points = [center]
-        num_segments = 64
-        
-        # Calculate points across the arc of a circular sector
-        for i in range(num_segments + 1):
-            Θ = start_angle + (end_angle - start_angle) * i / num_segments
-            
-            # Polar to Cartesian Coordinates: x = r cosΘ, y = r sinΘ
-            # https://en.wikipedia.org/wiki/Polar_coordinate_system#Converting_between_polar_and_Cartesian_coordinates
-            
-            x = r + r * cos(Θ)
-            y = r + r * sin(Θ)
-            
-            points.append((x, y))
-        
-        points.append(center)
-        
+        points: List[pg.Vector2] = self._calc_disc_points(start_angle, end_angle, 64, radius, centre)
         pg.draw.polygon(disc_surface, pg.Color(128, 128, 128, 64), points)
+        
+        points = self._calc_disc_points(start_angle, end_angle, 64, self._config.protected_distance, centre)
+        pg.draw.polygon(disc_surface, pg.Color(128, 128, 128, 128), points)
         
         rotated_disc_surf = pg.transform.rotate(disc_surface, -orientation_angle)
         rotated_rect = rotated_disc_surf.get_rect(center=self._position)
         
         screen.blit(rotated_disc_surf, rotated_rect.topleft)
+        
+    # Calculate points across the arc of a circular sector and then the centre to form a disc
+    def _calc_disc_points(self, start_angle: float, end_angle: float, num_segments: int, radius: float, centre: pg.Vector2) -> List[pg.Vector2]:
+        points: List[pg.Vector2] = [centre]
+        
+        for i in range(num_segments + 1):
+            Θ: float = start_angle + (end_angle - start_angle) * i / num_segments
+            
+            # Polar to Cartesian Coordinates: x = r cosΘ, y = r sinΘ
+            # https://en.wikipedia.org/wiki/Polar_coordinate_system#Converting_between_polar_and_Cartesian_coordinates
+            x: float = centre.x + radius * cos(Θ)
+            y: float = centre.y + radius * sin(Θ)
+            
+            points.append(pg.Vector2(x, y))
+            
+        points.append(centre)
+        
+        return points
 
     def apply_force(self, force: pg.Vector2) -> None:
         self._velocity += force
@@ -106,5 +112,16 @@ class Boid:
             self.apply_force(pg.Vector2(0, -self._config.turn_speed))
             
     # Separation
-    def _avoid_local_flockmates(self) -> None:
-        raise NotImplementedError()
+    def _avoid_all_boids(self, boids: Set["Boid"]) -> None:
+        for boid in boids:
+            if boid is not self:
+                dist: pg.Vector2 = self.position - boid.position
+                
+                if dist.length_squared() >= self._config.protected_distance ** 2:
+                    continue
+                
+                angle_to_boid: float = self.position.angle_to(dist) # 0 = right
+                
+                half_vision_angle: float = self._config.vision_angle / 2
+                if -half_vision_angle <= angle_to_boid <= half_vision_angle:
+                    self.apply_force(dist * self._config.separate_speed)
