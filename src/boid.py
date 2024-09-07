@@ -38,7 +38,7 @@ class Boid:
     def update(self, boids: Set["Boid"], flockmates: Set["Boid"], dt: float) -> None:
         self._avoid_screen_edges(dt)
         self._avoid_all_boids(boids, dt)
-        # self._align_with_flockmates(flockmates, dt)
+        self._align_with_flockmates(flockmates, dt)
         
         self._velocity.clamp_magnitude_ip(self._config.min_speed, self._config.max_speed)
         self._position += self._velocity * dt
@@ -124,7 +124,7 @@ class Boid:
                 
             dist: pg.Vector2 = self.position - boid.position
             
-            if dist.length_squared() >= self.protected_distance_squared:
+            if dist.length_squared() > self.protected_distance_squared:
                 continue
             
             angle_to_boid: float = self.position.angle_to(dist) # 0 = right
@@ -134,8 +134,24 @@ class Boid:
             
     # Alignment
     def _align_with_flockmates(self, flockmates: Set["Boid"], dt: float) -> None:
-        raise NotImplementedError("the method '_align_with_flockmates' is not yet implemented")
+        velocity_acc: pg.Vector2 = pg.Vector2(0, 0)
+        neighbouring_boids: int = 0
         
-        # for mate in flockmates:
-        #     if mate is self:
-        #         continue
+        for mate in flockmates:
+            if mate is self:
+                continue
+            
+            dist: pg.Vector2 = self.position - mate.position
+            
+            if dist.length_squared() > self.vision_distance_squared:
+                continue
+            
+            angle_to_boid: float = self.position.angle_to(dist) # 0 = right
+            
+            if -self.half_vision_angle <= angle_to_boid <= self.half_vision_angle:    
+                velocity_acc += mate.velocity
+                neighbouring_boids += 1
+        
+        if neighbouring_boids > 0:
+            velocity_avg: pg.Vector2 = velocity_acc / neighbouring_boids
+            self.apply_force(velocity_avg * self._config.align_speed, dt)
