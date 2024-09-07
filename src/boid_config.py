@@ -14,13 +14,13 @@ class BoidConfig:
     protected_distance: float
 
 DEFAULT_CONFIG = BoidConfig(
-    min_speed=0.5,
-    max_speed=1.0,
-    size=10.0,
-    separate_speed=0.002,
-    align_speed=0.002,
-    centre_speed=0.002,
-    turn_speed=0.05,
+    min_speed=50,
+    max_speed=120,
+    size=10,
+    separate_speed=50,
+    align_speed=50,
+    centre_speed=50,
+    turn_speed=500,
     vision_angle=270,
     vision_distance=120,
     protected_distance=30

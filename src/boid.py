@@ -31,12 +31,12 @@ class Boid:
             self.size * 2
         )
 
-    def update(self, boids: Set["Boid"]) -> None:
-        self._avoid_screen_edges()
-        self._avoid_all_boids(boids)
+    def update(self, boids: Set["Boid"], dt: float) -> None:
+        self._avoid_screen_edges(dt)
+        self._avoid_all_boids(boids, dt)
         
         self._velocity.clamp_magnitude_ip(self._config.min_speed, self._config.max_speed)
-        self._position += self._velocity
+        self._position += self._velocity * dt
         
     def draw(self, screen: pg.Surface) -> None:
         orientation_angle: float = degrees(atan2(self._velocity.y, self._velocity.x))
@@ -95,33 +95,35 @@ class Boid:
         
         return points
 
-    def apply_force(self, force: pg.Vector2) -> None:
-        self._velocity += force
+    def apply_force(self, force: pg.Vector2, dt: float) -> None:
+        self._velocity += force * dt
         
-    def _avoid_screen_edges(self) -> None:
+    def _avoid_screen_edges(self, dt: float) -> None:
         if self._position.x < SCREEN_MARGIN_LEFT:
-            self.apply_force(pg.Vector2(self._config.turn_speed, 0))
+            self.apply_force(pg.Vector2(self._config.turn_speed, 0), dt)
             
         if self._position.x > SCREEN_MARGIN_RIGHT:
-            self.apply_force(pg.Vector2(-self._config.turn_speed, 0))
+            self.apply_force(pg.Vector2(-self._config.turn_speed, 0), dt)
             
         if self._position.y < SCREEN_MARGIN_TOP:
-            self.apply_force(pg.Vector2(0, self._config.turn_speed))
+            self.apply_force(pg.Vector2(0, self._config.turn_speed), dt)
             
         if self._position.y > SCREEN_MARGIN_BOTTOM:
-            self.apply_force(pg.Vector2(0, -self._config.turn_speed))
+            self.apply_force(pg.Vector2(0, -self._config.turn_speed), dt)
             
     # Separation
-    def _avoid_all_boids(self, boids: Set["Boid"]) -> None:
+    def _avoid_all_boids(self, boids: Set["Boid"], dt: float) -> None:
+        protected_distance_squared: float = self._config.protected_distance ** 2
+        half_vision_angle: float = self._config.vision_angle / 2
+        
         for boid in boids:
             if boid is not self:
                 dist: pg.Vector2 = self.position - boid.position
                 
-                if dist.length_squared() >= self._config.protected_distance ** 2:
+                if dist.length_squared() >= protected_distance_squared:
                     continue
                 
                 angle_to_boid: float = self.position.angle_to(dist) # 0 = right
                 
-                half_vision_angle: float = self._config.vision_angle / 2
                 if -half_vision_angle <= angle_to_boid <= half_vision_angle:
-                    self.apply_force(dist * self._config.separate_speed)
+                    self.apply_force(dist * self._config.separate_speed, dt)

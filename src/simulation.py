@@ -1,9 +1,10 @@
 from random import choice, randrange, uniform
+import time
 from typing import Set, Tuple
 
 import pygame as pg
 
-from settings import FPS, SCREEN_WIDTH, SCREEN_HEIGHT, NUM_BOIDS
+from settings import FPS, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_MARGIN_LEFT, SCREEN_MARGIN_RIGHT, SCREEN_MARGIN_TOP, SCREEN_MARGIN_BOTTOM, NUM_BOIDS
 from boid_config import DEFAULT_CONFIG
 from boid import Boid
 
@@ -16,17 +17,23 @@ class Simulation:
         self.clock: pg.Clock = pg.time.Clock()
         
         self.selected_boid: Boid | None = None
+        self.boids: Set[Boid] = self._generate_boids()
+
+        self.running: bool = True
         
-        self.boids: Set[Boid] = set()
+    def _generate_boids(self) -> Set[Boid]:
+        boids: Set[Boid] = set()
+        
         for _ in range(NUM_BOIDS):
-            pos: pg.Vector2 = pg.Vector2(randrange(0, SCREEN_WIDTH), randrange(0, SCREEN_HEIGHT))
+            pos: pg.Vector2 = pg.Vector2(randrange(SCREEN_MARGIN_LEFT, SCREEN_MARGIN_RIGHT), randrange(SCREEN_MARGIN_TOP, SCREEN_MARGIN_BOTTOM))
             vel: pg.Vector2 = pg.Vector2(
                 uniform(DEFAULT_CONFIG.min_speed, DEFAULT_CONFIG.max_speed) * choice((-1, 1)),
                 uniform(DEFAULT_CONFIG.min_speed, DEFAULT_CONFIG.max_speed) * choice((-1, 1))
             )
-            self.boids.add(Boid(pos, vel, DEFAULT_CONFIG))
-        
-        self.running: bool = True
+            
+            boids.add(Boid(pos, vel, DEFAULT_CONFIG))
+            
+        return boids
         
     def _handle_input(self) -> None:
         for event in pg.event.get():
@@ -50,16 +57,24 @@ class Simulation:
                             break
         
     def run(self) -> None:
+        dt: float = 0
+        prev_time: float = time.time()
+        
         while self.running:
             self._handle_input()
             
             self.screen.fill(pg.Color('black'))
             
             for boid in self.boids:
-                boid.update(self.boids)
+                boid.update(self.boids, dt)
                 boid.draw(self.screen)
             
             pg.display.flip()
+            
+            dt = time.time() - prev_time
+            prev_time = time.time()
+            
             self.clock.tick(FPS)
+            print(self.clock.get_fps())
         
         pg.quit()
