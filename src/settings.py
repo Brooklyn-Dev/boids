@@ -1,3 +1,5 @@
+import pygame as pg
+
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
 SCREEN_MARGIN = 50
 SCREEN_MARGIN_LEFT = SCREEN_MARGIN
@@ -8,3 +10,10 @@ SCREEN_MARGIN_BOTTOM = SCREEN_HEIGHT - SCREEN_MARGIN
 FPS = 120
 
 NUM_BOIDS = 100
+
+FLOCK_COLOURS = {
+    0: pg.Color("white"),
+    1: pg.Color("red"),
+    2: pg.Color("green"),
+    3: pg.Color("blue"),
+}
