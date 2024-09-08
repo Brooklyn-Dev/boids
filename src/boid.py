@@ -19,8 +19,8 @@ class Boid:
         self._config: BoidConfig = config
         self.colour: pg.Color = pg.Color("white")
         self.size: float = config.size
-        self.vision_distance_squared: float = self._config.vision_distance ** 2
-        self.protected_distance_squared: float = self._config.protected_distance ** 2
+        self.vision_dist_sq: float = self._config.vision_distance ** 2
+        self.protected_dist_sq: float = self._config.protected_distance ** 2
         self.half_vision_angle: float = self._config.vision_angle / 2
         
         self._position: pg.Vector2 = position
@@ -38,7 +38,8 @@ class Boid:
     def update(self, boids: Set["Boid"], flockmates: Set["Boid"], dt: float) -> None:
         self._avoid_screen_edges(dt)
         self._avoid_all_boids(boids, dt)
-        self._align_with_flockmates(flockmates, dt)
+        self._align_with_local_flockmates(flockmates, dt)
+        self._steer_towards_local_flockmates(flockmates, dt)
         
         self._velocity.clamp_magnitude_ip(self._config.min_speed, self._config.max_speed)
         self._position += self._velocity * dt
@@ -123,17 +124,20 @@ class Boid:
                 continue
                 
             dist: pg.Vector2 = self.position - boid.position
+            dist_sq: float = dist.length_squared()
             
-            if dist.length_squared() > self.protected_distance_squared:
+            if dist_sq > self.protected_dist_sq:
                 continue
             
             angle_to_boid: float = self.position.angle_to(dist) # 0 = right
-            
+
             if -self.half_vision_angle <= angle_to_boid <= self.half_vision_angle:
-                self.apply_force(dist * self._config.separate_speed, dt)
+                if dist_sq != 0:
+                    separation_force = dist * (self._config.separate_speed / dist_sq)
+                    self.apply_force(separation_force, dt)
             
     # Alignment
-    def _align_with_flockmates(self, flockmates: Set["Boid"], dt: float) -> None:
+    def _align_with_local_flockmates(self, flockmates: Set["Boid"], dt: float) -> None:
         velocity_acc: pg.Vector2 = pg.Vector2(0, 0)
         neighbouring_boids: int = 0
         
@@ -143,7 +147,7 @@ class Boid:
             
             dist: pg.Vector2 = self.position - mate.position
             
-            if dist.length_squared() > self.vision_distance_squared:
+            if dist.length_squared() > self.vision_dist_sq:
                 continue
             
             angle_to_boid: float = self.position.angle_to(dist) # 0 = right
@@ -153,5 +157,31 @@ class Boid:
                 neighbouring_boids += 1
         
         if neighbouring_boids > 0:
-            velocity_avg: pg.Vector2 = velocity_acc / neighbouring_boids
-            self.apply_force(velocity_avg * self._config.align_speed, dt)
+            velocity_avg: pg.Vector2 = velocity_acc / neighbouring_boids       
+            alignment_force: pg.Vector2 = (velocity_avg - self.velocity) * self._config.align_speed
+            self.apply_force(alignment_force, dt)
+            
+    # Cohesion
+    def _steer_towards_local_flockmates(self, flockmates: Set["Boid"], dt: float) -> None:
+        position_acc: pg.Vector2 = pg.Vector2(0, 0)
+        neighbouring_boids: int = 0
+        
+        for mate in flockmates:
+            if mate is self:
+                continue
+            
+            dist: pg.Vector2 = self.position - mate.position
+            
+            if dist.length_squared() > self.vision_dist_sq:
+                continue
+            
+            angle_to_boid: float = self.position.angle_to(dist) # 0 = right
+            
+            if -self.half_vision_angle <= angle_to_boid <= self.half_vision_angle:    
+                position_acc += mate.position
+                neighbouring_boids += 1
+        
+        if neighbouring_boids > 0:
+            position_avg: pg.Vector2 = position_acc / neighbouring_boids
+            cohesion_force: pg.Vector2 = (position_avg - self.position).normalize() * self._config.centre_speed
+            self.apply_force(cohesion_force, dt)

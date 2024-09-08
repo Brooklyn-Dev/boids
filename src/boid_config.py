@@ -15,13 +15,13 @@ class BoidConfig:
 
 DEFAULT_CONFIG = BoidConfig(
     min_speed=50,
-    max_speed=120,
+    max_speed=100,
     size=10,
-    separate_speed=80,
-    align_speed=10,
-    centre_speed=40,
-    turn_speed=1200,
+    separate_speed=800,
+    align_speed=1,
+    centre_speed=0.2,
+    turn_speed=300,
     vision_angle=270,
-    vision_distance=80,
-    protected_distance=20
+    vision_distance=90,
+    protected_distance=30
 )
