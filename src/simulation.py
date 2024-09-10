@@ -76,6 +76,5 @@ class Simulation:
             prev_time = time.time()
             
             self.clock.tick(FPS)
-            print(self.clock.get_fps())
         
         pg.quit()
